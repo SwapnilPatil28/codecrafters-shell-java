@@ -6,15 +6,13 @@ public class Main {
         while(true)
         {
             System.out.print("$ ");
-            String s = sc.next();
+            String s = sc.nextLine();
             if(s.equals("exit"))   break;
-            if(s.equals("echo"))
+            else if(s.startsWith("echo"))
             {
-                String s1 = sc.nextLine();
-                System.out.println(s1);
-                continue;
+                System.out.println((s.length()>5)?s.substring(5):"");
             }
-            System.out.println(s+": command not found");
+            else System.out.println(s+": command not found");
         }
     }
 }
