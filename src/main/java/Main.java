@@ -314,9 +314,19 @@ public class Main {
             }
             else if(program.equals("jobs"))
             {
-                for(Job job : jobsList) 
+                for(int j = 0; j < jobsList.size(); j++) 
                 {
-                    out.printf("[%d]+  %-24s%s\n", job.id, job.status, job.command);
+                    Job job = jobsList.get(j);
+                    char marker = ' ';
+                    if(j == jobsList.size() - 1) 
+                    {
+                        marker = '+';
+                    } 
+                    else if(j == jobsList.size() - 2) 
+                    {
+                        marker = '-';
+                    }
+                    out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
                 }
             }
             else 
