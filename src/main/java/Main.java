@@ -1,23 +1,49 @@
 import java.util.Scanner;
 
 public class Main {
-    public static void main(String[] args) throws Exception {
+
+    public static String type(String command)
+    {
+        String[] commands = {"exit", "echo", "type"};
+        String path = System.getenv("PATH");
+        String[] pathDirs = path.split(":");
+        boolean isBuiltIn = false;
+        for(int i=0; i<commands.length; i++)
+        {
+            if(commands[i].equals(command)) 
+            {
+                return command + " is a shell builtin";
+            }
+        }
+        for(int i=0; i<pathDirs.length; i++) 
+        {
+            File file = new File(pathDirs[i], command);
+            if(file.exists() && file.canExecute()) 
+            {
+                return command + " is " + file.getAbsolutePath();
+            }
+        }
+        return command + ": not found";
+    }
+
+    public static void main(String[] args) throws Exception
+    {
         Scanner sc = new Scanner(System.in);
         while(true)
         {
             System.out.print("$ ");
-            String s = sc.nextLine();
-            if(s.equals("exit"))   break;
-            else if(s.startsWith("echo "))
+            String command = sc.nextLine();
+            if(command.equals("exit"))   break;
+            else if(command.startsWith("echo"))
             {
-                System.out.println((s.length()>5)?s.substring(5):"");
+                System.out.println((command.length()>5)?command.substring(5):"");
             }
-            else if(s.startsWith("type "))
+            else if(s.startsWith("type"))
             {
-                if(s.substring(5).equals("exit")||s.substring(5).equals("echo")||s.substring(5).equals("type"))     System.out.println(s.substring(5)+" is a shell builtin");
-                else System.out.println(s.substring(5)+": not found");
+                String nextCom = command.substring(5);
+                System.out.println(type(nextCom));
             }
-            else System.out.println(s+": command not found");
+            else System.out.println(command+": command not found");
         }
     }
 }
