@@ -173,32 +173,22 @@ public class Main {
             }
         }
         
-        List<Job> activeJobs = new ArrayList<>(jobsList);
-        activeJobs.removeAll(toRemove);
-
         for(int j = 0; j < jobsList.size(); j++) 
         {
             Job job = jobsList.get(j);
-            if(toRemove.contains(job)) 
+            char marker = ' ';
+            if(j == jobsList.size() - 1) 
             {
-                int index = activeJobs.size(); 
-                char marker = ' ';
-                if(index == activeJobs.size()) marker = '+';
-                else if(index == activeJobs.size() - 1) marker = '-';
-                
-                out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
+                marker = '+';
+            } 
+            else if(j == jobsList.size() - 2) 
+            {
+                marker = '-';
             }
-            else 
+            
+            if(printAll || toRemove.contains(job)) 
             {
-                int index = activeJobs.indexOf(job);
-                char marker = ' ';
-                if(index == activeJobs.size() - 1) marker = '+';
-                else if(index == activeJobs.size() - 2) marker = '-';
-                
-                if(printAll)
-                {
-                    out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
-                }
+                out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
             }
         }
         jobsList.removeAll(toRemove);
@@ -206,11 +196,19 @@ public class Main {
 
     public static int getNextJobId() 
     {
-        Set<Integer> usedIds = new HashSet<>();
-        for (Job job : jobsList) usedIds.add(job.id);
-        int id = 1;
-        while (usedIds.contains(id)) id++;
-        return id;
+        if (jobsList.isEmpty()) 
+        {
+            return 1;
+        }
+        int maxId = 0;
+        for (Job job : jobsList) 
+        {
+            if (job.id > maxId) 
+            {
+                maxId = job.id;
+            }
+        }
+        return maxId + 1;
     }
 
     public static void main(String[] args) throws Exception
@@ -293,6 +291,116 @@ public class Main {
 
             String[] parts = parsedArgs.toArray(new String[0]);
             if(parts.length == 0) continue;
+
+            int pipeIndex = -1;
+            for(int i = 0; i < parts.length; i++)
+            {
+                if(parts[i].equals("|"))
+                {
+                    pipeIndex = i;
+                    break;
+                }
+            }
+
+            if(pipeIndex != -1)
+            {
+                List<String> leftArgs = new ArrayList<>();
+                for(int i = 0; i < pipeIndex; i++) leftArgs.add(parts[i]);
+
+                List<String> rightArgs = new ArrayList<>();
+                for(int i = pipeIndex + 1; i < parts.length; i++) rightArgs.add(parts[i]);
+
+                if(leftArgs.isEmpty() || rightArgs.isEmpty()) continue;
+
+                String leftExec = getExecutablePath(leftArgs.get(0));
+                String rightExec = getExecutablePath(rightArgs.get(0));
+
+                if(leftExec != null && rightExec != null)
+                {
+                    try
+                    {
+                        ProcessBuilder pb1 = new ProcessBuilder(leftArgs);
+                        ProcessBuilder pb2 = new ProcessBuilder(rightArgs);
+                        
+                        pb1.directory(new File(System.getProperty("user.dir")));
+                        pb2.directory(new File(System.getProperty("user.dir")));
+
+                        pb1.redirectInput(ProcessBuilder.Redirect.INHERIT);
+                        
+                        if(outputFile != null)
+                        {
+                            File f = new File(outputFile);
+                            if(f.getParentFile() != null && !f.getParentFile().exists())
+                            {
+                                f.getParentFile().mkdirs();
+                            }
+                            if(appendOutput) pb2.redirectOutput(ProcessBuilder.Redirect.appendTo(f));
+                            else pb2.redirectOutput(f);
+                        }
+                        else
+                        {
+                            pb2.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                        }
+
+                        if(errorFile != null)
+                        {
+                            File f = new File(errorFile);
+                            if(f.getParentFile() != null && !f.getParentFile().exists())
+                            {
+                                f.getParentFile().mkdirs();
+                            }
+                            if(appendError) 
+                            {
+                                pb1.redirectError(ProcessBuilder.Redirect.appendTo(f));
+                                pb2.redirectError(ProcessBuilder.Redirect.appendTo(f));
+                            }
+                            else 
+                            {
+                                pb1.redirectError(f);
+                                pb2.redirectError(f);
+                            }
+                        }
+                        else
+                        {
+                            pb1.redirectError(ProcessBuilder.Redirect.INHERIT);
+                            pb2.redirectError(ProcessBuilder.Redirect.INHERIT);
+                        }
+
+                        List<ProcessBuilder> pbs = new ArrayList<>();
+                        pbs.add(pb1);
+                        pbs.add(pb2);
+                        
+                        List<Process> processes = ProcessBuilder.startPipeline(pbs);
+                        Process lastProcess = processes.get(processes.size() - 1);
+                        
+                        if(runInBackground)
+                        {
+                            int jobId = getNextJobId();
+                            System.out.println("[" + jobId + "] " + lastProcess.pid());
+                            jobsList.add(new Job(jobId, lastProcess, command, "Running"));
+                        }
+                        else
+                        {
+                            for(int i = 0; i < processes.size(); i++)
+                            {
+                                processes.get(i).waitFor();
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        System.out.println(e.getMessage());
+                    }
+                }
+                else
+                {
+                    if(leftExec == null) System.err.println(leftArgs.get(0) + ": command not found");
+                    if(rightExec == null) System.err.println(rightArgs.get(0) + ": command not found");
+                }
+                
+                continue;
+            }
+
             String program = parts[0];
 
             PrintStream out = System.out;
