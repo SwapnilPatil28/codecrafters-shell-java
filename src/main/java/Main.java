@@ -71,8 +71,15 @@ public class Main {
             else if(program.equals("cd"))
             {
                 String pathArg = parts[1];
+                String targetPath = pathArg;
+                
+                if(targetPath.startsWith("~"))
+                {
+                    targetPath = System.getenv("HOME") + targetPath.substring(1);
+                }
+                
                 Path currentPath = Paths.get(System.getProperty("user.dir"));
-                Path resolvedPath = currentPath.resolve(pathArg).normalize();
+                Path resolvedPath = currentPath.resolve(targetPath).normalize();
                 File dir = resolvedPath.toFile();
                 
                 if(dir.exists() && dir.isDirectory())
