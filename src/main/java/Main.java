@@ -36,7 +36,7 @@ public class Main {
 
     public static String type(String command)
     {
-        String[] commands = {"exit", "echo", "type", "pwd", "cd"};
+        String[] commands = {"exit", "echo", "type", "pwd", "cd", "jobs"};
         for(int i=0; i<commands.length; i++)
         {
             if(commands[i].equals(command)) 
@@ -285,6 +285,10 @@ public class Main {
                         err.println("cd: " + pathArg + ": No such file or directory");
                     }
                 }
+            }
+            else if(program.equals("jobs"))
+            {
+                
             }
             else 
             {
