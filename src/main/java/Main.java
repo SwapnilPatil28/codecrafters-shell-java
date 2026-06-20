@@ -7,6 +7,16 @@ public class Main {
 
     public static String getExecutablePath(String command)
     {
+        if(command.contains("/")) 
+        {
+            File file = new File(command);
+            if(file.exists() && file.canExecute()) 
+            {
+                return file.getAbsolutePath();
+            }
+            return null;
+        }
+
         String path = System.getenv("PATH");
         if(path == null) return null;
         
