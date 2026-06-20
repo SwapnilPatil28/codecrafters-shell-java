@@ -23,6 +23,7 @@ public class Main {
     }
 
     static List<Job> jobsList = new ArrayList<>();
+    static int globalJobCounter = 1;
 
     public static String getExecutablePath(String command)
     {
@@ -381,7 +382,7 @@ public class Main {
                         
                         if(runInBackground) 
                         {
-                            int jobId = jobsList.size() + 1;
+                            int jobId = globalJobCounter++;
                             System.out.println("[" + jobId + "] " + p.pid());
                             jobsList.add(new Job(jobId, p, command, "Running"));
                         } 
