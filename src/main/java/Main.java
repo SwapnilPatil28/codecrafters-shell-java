@@ -61,9 +61,40 @@ public class Main {
                 inWord = true;
                 escaped = false;
             }
-            else if(c == '\\' && !inSingleQuotes && !inDoubleQuotes) 
+            else if(c == '\\') 
             {
-                escaped = true;
+                if(inSingleQuotes) 
+                {
+                    sb.append(c);
+                    inWord = true;
+                } 
+                else if(inDoubleQuotes) 
+                {
+                    if(i + 1 < command.length()) 
+                    {
+                        char next = command.charAt(i + 1);
+                        if(next == '\\' || next == '"' || next == '$' || next == '\n') 
+                        {
+                            sb.append(next);
+                            i++;
+                            inWord = true;
+                        } 
+                        else 
+                        {
+                            sb.append(c);
+                            inWord = true;
+                        }
+                    } 
+                    else 
+                    {
+                        sb.append(c);
+                        inWord = true;
+                    }
+                } 
+                else 
+                {
+                    escaped = true;
+                }
             }
             else if(c == '\'' && !inDoubleQuotes) 
             {
@@ -117,7 +148,7 @@ public class Main {
             if(program.equals("exit")) break;
             else if(program.equals("echo"))
             {
-                for(int i = 1; i < parts.length; i++) 
+                for (int i = 1; i < parts.length; i++) 
                 {
                     System.out.print(parts[i]);
                     if (i < parts.length - 1) System.out.print(" ");
@@ -126,7 +157,7 @@ public class Main {
             }
             else if(program.equals("type"))
             {
-                if(parts.length > 1) 
+                if (parts.length > 1) 
                 {
                     System.out.println(type(parts[1]));
                 }
