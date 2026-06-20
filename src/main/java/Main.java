@@ -22,7 +22,7 @@ public class Main {
 
     public static String type(String command)
     {
-        String[] commands = {"exit", "echo", "type"};
+        String[] commands = {"exit", "echo", "type", "pwd"};
         for(int i=0; i<commands.length; i++)
         {
             if(commands[i].equals(command)) 
@@ -61,6 +61,10 @@ public class Main {
             {
                 String nextCom = command.substring(5);
                 System.out.println(type(nextCom));
+            }
+            else if(program.equals("pwd"))
+            {
+                System.out.println(System.getProperty("user.dir"));
             }
             else 
             {
