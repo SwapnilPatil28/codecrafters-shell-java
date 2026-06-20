@@ -22,7 +22,7 @@ public class Main {
 
     public static String type(String command)
     {
-        String[] commands = {"exit", "echo", "type", "pwd"};
+        String[] commands = {"exit", "echo", "type", "pwd", "cd"};
         for(int i=0; i<commands.length; i++)
         {
             if(commands[i].equals(command)) 
@@ -66,6 +66,20 @@ public class Main {
             {
                 System.out.println(System.getProperty("user.dir"));
             }
+            else if(program.equals("cd"))
+            {
+                String pathArg = parts[1];
+                File dir = new File(pathArg);
+                
+                if(dir.exists() && dir.isDirectory())
+                {
+                    System.setProperty("user.dir", dir.getAbsolutePath());
+                }
+                else
+                {
+                    System.out.println("cd: " + pathArg + ": No such file or directory");
+                }
+            }
             else 
             {
                 String execPath = getExecutablePath(program);
@@ -74,6 +88,7 @@ public class Main {
                     try 
                     {
                         ProcessBuilder pb = new ProcessBuilder(parts);
+                        pb.directory(new File(System.getProperty("user.dir")));
                         pb.inheritIO(); 
                         
                         Process p = pb.start();
