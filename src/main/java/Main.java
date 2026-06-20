@@ -1,4 +1,5 @@
 import java.io.File;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -152,29 +153,61 @@ public class Main {
             List<String> parsedArgs = parseCommand(command);
             if(parsedArgs.isEmpty()) continue;
 
+            String outputFile = null;
+            for(int i = 0; i < parsedArgs.size(); i++) 
+            {
+                String arg = parsedArgs.get(i);
+                if(arg.equals(">") || arg.equals("1>")) 
+                {
+                    if(i + 1 < parsedArgs.size()) 
+                    {
+                        outputFile = parsedArgs.get(i + 1);
+                        parsedArgs.remove(i + 1);
+                        parsedArgs.remove(i);
+                        break;
+                    }
+                }
+            }
+
             String[] parts = parsedArgs.toArray(new String[0]);
+            if(parts.length == 0) continue;
             String program = parts[0];
 
-            if(program.equals("exit")) break;
+            PrintStream out = System.out;
+            if(outputFile != null) 
+            {
+                File f = new File(outputFile);
+                if(f.getParentFile() != null && !f.getParentFile().exists()) 
+                {
+                    f.getParentFile().mkdirs();
+                }
+                out = new PrintStream(f);
+            }
+
+            if(program.equals("exit")) 
+            {
+                if(out != System.out) out.close();
+                break;
+            }
             else if(program.equals("echo"))
             {
                 for (int i = 1; i < parts.length; i++) 
                 {
-                    System.out.print(parts[i]);
-                    if (i < parts.length - 1) System.out.print(" ");
+                    out.print(parts[i]);
+                    if (i < parts.length - 1) out.print(" ");
                 }
-                System.out.println();
+                out.println();
             }
             else if(program.equals("type"))
             {
                 if (parts.length > 1) 
                 {
-                    System.out.println(type(parts[1]));
+                    out.println(type(parts[1]));
                 }
             }
             else if(program.equals("pwd"))
             {
-                System.out.println(System.getProperty("user.dir"));
+                out.println(System.getProperty("user.dir"));
             }
             else if(program.equals("cd"))
             {
@@ -211,7 +244,17 @@ public class Main {
                     {
                         ProcessBuilder pb = new ProcessBuilder(parts);
                         pb.directory(new File(System.getProperty("user.dir")));
-                        pb.inheritIO(); 
+                        
+                        if (outputFile != null) 
+                        {
+                            pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+                            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                            pb.redirectOutput(new File(outputFile));
+                        } 
+                        else 
+                        {
+                            pb.inheritIO(); 
+                        }
                         
                         Process p = pb.start();
                         p.waitFor();
@@ -225,6 +268,11 @@ public class Main {
                 {
                     System.out.println(command + ": command not found");
                 }
+            }
+
+            if(out != System.out) 
+            {
+                out.close();
             }
         }
     }
