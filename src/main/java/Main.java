@@ -154,6 +154,15 @@ public class Main {
             List<String> parsedArgs = parseCommand(command);
             if(parsedArgs.isEmpty()) continue;
 
+            boolean runInBackground = false;
+            if(parsedArgs.get(parsedArgs.size() - 1).equals("&")) 
+            {
+                runInBackground = true;
+                parsedArgs.remove(parsedArgs.size() - 1);
+            }
+
+            if(parsedArgs.isEmpty()) continue;
+
             String outputFile = null;
             String errorFile = null;
             boolean appendOutput = false;
@@ -330,7 +339,15 @@ public class Main {
                         }
                         
                         Process p = pb.start();
-                        p.waitFor();
+                        
+                        if(runInBackground) 
+                        {
+                            System.out.println("[1] " + p.pid());
+                        } 
+                        else 
+                        {
+                            p.waitFor();
+                        }
                     } 
                     catch (Exception e) 
                     {
