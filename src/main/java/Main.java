@@ -7,6 +7,23 @@ import java.util.*;
 
 public class Main {
 
+    static class Job {
+        int id;
+        long pid;
+        String command;
+        String status;
+
+        Job(int id, long pid, String command, String status)
+        {
+            this.id = id;
+            this.pid = pid;
+            this.command = command;
+            this.status = status;
+        }
+    }
+
+    static List<Job> jobsList = new ArrayList<>();
+
     public static String getExecutablePath(String command)
     {
         if(command.contains("/")) 
@@ -297,7 +314,10 @@ public class Main {
             }
             else if(program.equals("jobs"))
             {
-                
+                for(Job job : jobsList) 
+                {
+                    out.printf("[%d]+  %-24s%s\n", job.id, job.status, job.command);
+                }
             }
             else 
             {
@@ -342,7 +362,9 @@ public class Main {
                         
                         if(runInBackground) 
                         {
-                            System.out.println("[1] " + p.pid());
+                            int jobId = jobsList.size() + 1;
+                            System.out.println("[" + jobId + "] " + p.pid());
+                            jobsList.add(new Job(jobId, p.pid(), command, "Running"));
                         } 
                         else 
                         {
