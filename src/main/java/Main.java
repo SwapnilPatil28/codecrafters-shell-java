@@ -9,14 +9,14 @@ public class Main {
 
     static class Job {
         int id;
-        long pid;
+        Process process;
         String command;
         String status;
 
-        Job(int id, long pid, String command, String status)
+        Job(int id, Process process, String command, String status)
         {
             this.id = id;
-            this.pid = pid;
+            this.process = process;
             this.command = command;
             this.status = status;
         }
@@ -314,9 +314,17 @@ public class Main {
             }
             else if(program.equals("jobs"))
             {
+                List<Job> toRemove = new ArrayList<>();
                 for(int j = 0; j < jobsList.size(); j++) 
                 {
                     Job job = jobsList.get(j);
+                    if(!job.process.isAlive()) 
+                    {
+                        job.status = "Done";
+                        job.command = job.command.replaceAll("\\s*&\\s*$", "");
+                        toRemove.add(job);
+                    }
+                    
                     char marker = ' ';
                     if(j == jobsList.size() - 1) 
                     {
@@ -328,6 +336,7 @@ public class Main {
                     }
                     out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
                 }
+                jobsList.removeAll(toRemove);
             }
             else 
             {
@@ -374,7 +383,7 @@ public class Main {
                         {
                             int jobId = jobsList.size() + 1;
                             System.out.println("[" + jobId + "] " + p.pid());
-                            jobsList.add(new Job(jobId, p.pid(), command, "Running"));
+                            jobsList.add(new Job(jobId, p, command, "Running"));
                         } 
                         else 
                         {
