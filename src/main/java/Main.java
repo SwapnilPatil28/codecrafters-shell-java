@@ -42,6 +42,46 @@ public class Main {
         return command + ": not found";
     }
 
+    public static List<String> parseCommand(String command) 
+    {
+        List<String> args = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inSingleQuotes = false;
+        boolean inWord = false;
+
+        for(int i = 0; i < command.length(); i++) 
+        {
+            char c = command.charAt(i);
+
+            if(c == '\'') 
+            {
+                inSingleQuotes = !inSingleQuotes;
+                inWord = true;
+            } 
+            else if(c == ' ' && !inSingleQuotes) 
+            {
+                if(inWord) 
+                {
+                    args.add(sb.toString());
+                    sb.setLength(0);
+                    inWord = false;
+                }
+            } 
+            else 
+            {
+                sb.append(c);
+                inWord = true;
+            }
+        }
+        
+        if(inWord) 
+        {
+            args.add(sb.toString());
+        }
+        
+        return args;
+    }
+
     public static void main(String[] args) throws Exception
     {
         Scanner sc = new Scanner(System.in);
@@ -51,18 +91,28 @@ public class Main {
             String command = sc.nextLine();
             if(command.trim().isEmpty()) continue;
 
-            String[] parts = command.split(" ");
+            List<String> parsedArgs = parseCommand(command);
+            if(parsedArgs.isEmpty()) continue;
+
+            String[] parts = parsedArgs.toArray(new String[0]);
             String program = parts[0];
 
             if(program.equals("exit")) break;
             else if(program.equals("echo"))
             {
-                System.out.println((command.length()>5)?command.substring(5):"");
+                for (int i = 1; i < parts.length; i++) 
+                {
+                    System.out.print(parts[i]);
+                    if (i < parts.length - 1) System.out.print(" ");
+                }
+                System.out.println();
             }
             else if(program.equals("type"))
             {
-                String nextCom = command.substring(5);
-                System.out.println(type(nextCom));
+                if (parts.length > 1) 
+                {
+                    System.out.println(type(parts[1]));
+                }
             }
             else if(program.equals("pwd"))
             {
@@ -70,25 +120,28 @@ public class Main {
             }
             else if(program.equals("cd"))
             {
-                String pathArg = parts[1];
-                String targetPath = pathArg;
-                
-                if(targetPath.startsWith("~"))
+                if (parts.length > 1) 
                 {
-                    targetPath = System.getenv("HOME") + targetPath.substring(1);
-                }
-                
-                Path currentPath = Paths.get(System.getProperty("user.dir"));
-                Path resolvedPath = currentPath.resolve(targetPath).normalize();
-                File dir = resolvedPath.toFile();
-                
-                if(dir.exists() && dir.isDirectory())
-                {
-                    System.setProperty("user.dir", dir.getAbsolutePath());
-                }
-                else
-                {
-                    System.out.println("cd: " + pathArg + ": No such file or directory");
+                    String pathArg = parts[1];
+                    String targetPath = pathArg;
+                    
+                    if(targetPath.startsWith("~"))
+                    {
+                        targetPath = System.getenv("HOME") + targetPath.substring(1);
+                    }
+                    
+                    Path currentPath = Paths.get(System.getProperty("user.dir"));
+                    Path resolvedPath = currentPath.resolve(targetPath).normalize();
+                    File dir = resolvedPath.toFile();
+                    
+                    if(dir.exists() && dir.isDirectory())
+                    {
+                        System.setProperty("user.dir", dir.getAbsolutePath());
+                    }
+                    else
+                    {
+                        System.out.println("cd: " + pathArg + ": No such file or directory");
+                    }
                 }
             }
             else 
