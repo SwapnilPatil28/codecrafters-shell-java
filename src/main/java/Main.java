@@ -47,18 +47,24 @@ public class Main {
         List<String> args = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         boolean inSingleQuotes = false;
+        boolean inDoubleQuotes = false;
         boolean inWord = false;
 
         for(int i = 0; i < command.length(); i++) 
         {
             char c = command.charAt(i);
 
-            if(c == '\'') 
+            if(c == '\'' && !inDoubleQuotes) 
             {
                 inSingleQuotes = !inSingleQuotes;
                 inWord = true;
             } 
-            else if(c == ' ' && !inSingleQuotes) 
+            else if(c == '"' && !inSingleQuotes) 
+            {
+                inDoubleQuotes = !inDoubleQuotes;
+                inWord = true;
+            }
+            else if(c == ' ' && !inSingleQuotes && !inDoubleQuotes) 
             {
                 if(inWord) 
                 {
