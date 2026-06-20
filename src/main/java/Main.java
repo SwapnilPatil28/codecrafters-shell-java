@@ -154,6 +154,8 @@ public class Main {
             if(parsedArgs.isEmpty()) continue;
 
             String outputFile = null;
+            String errorFile = null;
+            
             for(int i = 0; i < parsedArgs.size(); i++) 
             {
                 String arg = parsedArgs.get(i);
@@ -164,7 +166,17 @@ public class Main {
                         outputFile = parsedArgs.get(i + 1);
                         parsedArgs.remove(i + 1);
                         parsedArgs.remove(i);
-                        break;
+                        i--;
+                    }
+                }
+                else if(arg.equals("2>")) 
+                {
+                    if(i + 1 < parsedArgs.size()) 
+                    {
+                        errorFile = parsedArgs.get(i + 1);
+                        parsedArgs.remove(i + 1);
+                        parsedArgs.remove(i);
+                        i--;
                     }
                 }
             }
@@ -184,9 +196,21 @@ public class Main {
                 out = new PrintStream(f);
             }
 
+            PrintStream err = System.err;
+            if(errorFile != null) 
+            {
+                File f = new File(errorFile);
+                if(f.getParentFile() != null && !f.getParentFile().exists()) 
+                {
+                    f.getParentFile().mkdirs();
+                }
+                err = new PrintStream(f);
+            }
+
             if(program.equals("exit")) 
             {
                 if(out != System.out) out.close();
+                if(err != System.err) err.close();
                 break;
             }
             else if(program.equals("echo"))
@@ -231,7 +255,7 @@ public class Main {
                     }
                     else
                     {
-                        System.out.println("cd: " + pathArg + ": No such file or directory");
+                        err.println("cd: " + pathArg + ": No such file or directory");
                     }
                 }
             }
@@ -245,11 +269,15 @@ public class Main {
                         ProcessBuilder pb = new ProcessBuilder(parts);
                         pb.directory(new File(System.getProperty("user.dir")));
                         
-                        if (outputFile != null) 
+                        if(outputFile != null || errorFile != null) 
                         {
                             pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
-                            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-                            pb.redirectOutput(new File(outputFile));
+                            
+                            if(outputFile != null) pb.redirectOutput(new File(outputFile));
+                            else pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                            
+                            if(errorFile != null) pb.redirectError(new File(errorFile));
+                            else pb.redirectError(ProcessBuilder.Redirect.INHERIT);
                         } 
                         else 
                         {
@@ -266,13 +294,17 @@ public class Main {
                 } 
                 else 
                 {
-                    System.out.println(command + ": command not found");
+                    err.println(command + ": command not found");
                 }
             }
 
             if(out != System.out) 
             {
                 out.close();
+            }
+            if(err != System.err) 
+            {
+                err.close();
             }
         }
     }
