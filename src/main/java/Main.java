@@ -1,4 +1,6 @@
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Main {
@@ -69,7 +71,9 @@ public class Main {
             else if(program.equals("cd"))
             {
                 String pathArg = parts[1];
-                File dir = new File(pathArg);
+                Path currentPath = Paths.get(System.getProperty("user.dir"));
+                Path resolvedPath = currentPath.resolve(pathArg).normalize();
+                File dir = resolvedPath.toFile();
                 
                 if(dir.exists() && dir.isDirectory())
                 {
