@@ -160,12 +160,50 @@ public class Main {
         return args;
     }
 
+    public static void checkAndPrintJobs(boolean printAll, PrintStream out) 
+    {
+        List<Job> toRemove = new ArrayList<>();
+        for(int j = 0; j < jobsList.size(); j++) 
+        {
+            Job job = jobsList.get(j);
+            if(!job.process.isAlive()) 
+            {
+                job.status = "Done";
+                job.command = job.command.replaceAll("\\s*&\\s*$", "");
+                toRemove.add(job);
+            }
+        }
+        
+        for(int j = 0; j < jobsList.size(); j++) 
+        {
+            Job job = jobsList.get(j);
+            char marker = ' ';
+            if(j == jobsList.size() - 1) 
+            {
+                marker = '+';
+            } 
+            else if(j == jobsList.size() - 2) 
+            {
+                marker = '-';
+            }
+            
+            if(printAll || toRemove.contains(job)) 
+            {
+                out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
+            }
+        }
+        jobsList.removeAll(toRemove);
+    }
+
     public static void main(String[] args) throws Exception
     {
         Scanner sc = new Scanner(System.in);
         while(true)
         {
+            checkAndPrintJobs(false, System.out);
             System.out.print("$ ");
+            
+            if (!sc.hasNextLine()) break;
             String command = sc.nextLine();
             if(command.trim().isEmpty()) continue;
 
@@ -315,29 +353,7 @@ public class Main {
             }
             else if(program.equals("jobs"))
             {
-                List<Job> toRemove = new ArrayList<>();
-                for(int j = 0; j < jobsList.size(); j++) 
-                {
-                    Job job = jobsList.get(j);
-                    if(!job.process.isAlive()) 
-                    {
-                        job.status = "Done";
-                        job.command = job.command.replaceAll("\\s*&\\s*$", "");
-                        toRemove.add(job);
-                    }
-                    
-                    char marker = ' ';
-                    if(j == jobsList.size() - 1) 
-                    {
-                        marker = '+';
-                    } 
-                    else if(j == jobsList.size() - 2) 
-                    {
-                        marker = '-';
-                    }
-                    out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
-                }
-                jobsList.removeAll(toRemove);
+                checkAndPrintJobs(true, out);
             }
             else 
             {
