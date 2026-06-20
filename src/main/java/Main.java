@@ -374,108 +374,183 @@ public class Main {
 
             if(hasPipe)
             {
-                List<List<String>> pipelineCommands = new ArrayList<>();
+                List<List<String>> pipelineCmds = new ArrayList<>();
                 List<String> currentCmd = new ArrayList<>();
-                
-                for(String part : parts)
+                for(int i = 0; i < parts.length; i++)
                 {
-                    if(part.equals("|"))
+                    if(parts[i].equals("|"))
                     {
-                        if(!currentCmd.isEmpty()) pipelineCommands.add(currentCmd);
+                        if(!currentCmd.isEmpty()) pipelineCmds.add(currentCmd);
                         currentCmd = new ArrayList<>();
                     }
                     else
                     {
-                        currentCmd.add(part);
+                        currentCmd.add(parts[i]);
                     }
                 }
-                if(!currentCmd.isEmpty()) pipelineCommands.add(currentCmd);
+                if(!currentCmd.isEmpty()) pipelineCmds.add(currentCmd);
 
-                List<ProcessBuilder> pbs = new ArrayList<>();
-                boolean invalidCommand = false;
-
-                for(List<String> cmdArgs : pipelineCommands)
+                boolean allExternal = true;
+                for(int i = 0; i < pipelineCmds.size(); i++)
                 {
-                    String prog = cmdArgs.get(0);
-                    String execPath = getExecutablePath(prog);
-
-                    if(execPath == null && !isBuiltin(prog))
-                    {
-                        System.err.println(prog + ": command not found");
-                        invalidCommand = true;
-                        break;
-                    }
-                    else if(execPath != null)
-                    {
-                        cmdArgs.set(0, execPath);
-                    }
-
-                    ProcessBuilder pb = new ProcessBuilder(cmdArgs);
-                    pb.directory(new File(System.getProperty("user.dir")));
-                    pbs.add(pb);
+                    if(isBuiltin(pipelineCmds.get(i).get(0))) allExternal = false;
                 }
 
-                if(invalidCommand) continue;
-
-                ProcessBuilder lastPb = pbs.get(pbs.size() - 1);
-
-                if(outputFile != null)
+                if(allExternal)
                 {
-                    File f = new File(outputFile);
-                    if(f.getParentFile() != null && !f.getParentFile().exists())
+                    List<ProcessBuilder> pbs = new ArrayList<>();
+                    boolean valid = true;
+                    for(int i = 0; i < pipelineCmds.size(); i++)
                     {
-                        f.getParentFile().mkdirs();
+                        List<String> cmdArgs = pipelineCmds.get(i);
+                        String prog = cmdArgs.get(0);
+                        String exec = getExecutablePath(prog);
+                        if(exec == null)
+                        {
+                            System.err.println(prog + ": command not found");
+                            valid = false;
+                            break;
+                        }
+                        ProcessBuilder pb = new ProcessBuilder(cmdArgs);
+                        pb.directory(new File(System.getProperty("user.dir")));
+
+                        if(i == 0) pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+
+                        if(i == pipelineCmds.size() - 1)
+                        {
+                            if(outputFile != null)
+                            {
+                                File f = new File(outputFile);
+                                if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
+                                pb.redirectOutput(appendOutput ? ProcessBuilder.Redirect.appendTo(f) : ProcessBuilder.Redirect.to(f));
+                            }
+                            else
+                            {
+                                pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                            }
+                        }
+
+                        if(errorFile != null)
+                        {
+                            File f = new File(errorFile);
+                            if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
+                            pb.redirectError(appendError ? ProcessBuilder.Redirect.appendTo(f) : ProcessBuilder.Redirect.to(f));
+                        }
+                        else
+                        {
+                            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                        }
+                        pbs.add(pb);
                     }
-                    if(appendOutput) lastPb.redirectOutput(ProcessBuilder.Redirect.appendTo(f));
-                    else lastPb.redirectOutput(f);
+
+                    if(valid)
+                    {
+                        try
+                        {
+                            List<Process> processes = ProcessBuilder.startPipeline(pbs);
+                            Process lastProcess = processes.get(processes.size() - 1);
+
+                            if(runInBackground)
+                            {
+                                int jobId = getNextJobId();
+                                System.out.println("[" + jobId + "] " + lastProcess.pid());
+                                jobsList.add(new Job(jobId, lastProcess, command, "Running"));
+                            }
+                            else
+                            {
+                                for(int i = 0; i < processes.size(); i++) processes.get(i).waitFor();
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            System.out.println(e.getMessage());
+                        }
+                    }
+                    continue;
                 }
                 else
                 {
-                    lastPb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-                }
+                    File currentInputFile = null;
+                    for(int i = 0; i < pipelineCmds.size(); i++)
+                    {
+                        List<String> cmdArgs = pipelineCmds.get(i);
+                        String prog = cmdArgs.get(0);
+                        boolean isBuiltinCmd = isBuiltin(prog);
+                        String exec = getExecutablePath(prog);
 
-                for(ProcessBuilder pb : pbs)
-                {
-                    if(errorFile != null)
-                    {
-                        File f = new File(errorFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists())
+                        if(!isBuiltinCmd && exec == null)
                         {
-                            f.getParentFile().mkdirs();
+                            System.err.println(prog + ": command not found");
+                            break;
                         }
-                        if(appendError) pb.redirectError(ProcessBuilder.Redirect.appendTo(f));
-                        else pb.redirectError(f);
-                    }
-                    else
-                    {
-                        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-                    }
-                }
 
-                try
-                {
-                    List<Process> processes = ProcessBuilder.startPipeline(pbs);
-                    Process lastProcess = processes.get(processes.size() - 1);
-                    
-                    if(runInBackground)
-                    {
-                        int jobId = getNextJobId();
-                        System.out.println("[" + jobId + "] " + lastProcess.pid());
-                        jobsList.add(new Job(jobId, lastProcess, command, "Running"));
-                    }
-                    else
-                    {
-                        for(Process p : processes)
+                        File tempOut = null;
+                        if(i < pipelineCmds.size() - 1)
                         {
-                            p.waitFor();
+                            tempOut = File.createTempFile("pipe", ".tmp");
+                            tempOut.deleteOnExit();
                         }
+
+                        PrintStream out = System.out;
+                        if(tempOut != null)
+                        {
+                            out = new PrintStream(new FileOutputStream(tempOut));
+                        }
+                        else if(outputFile != null)
+                        {
+                            File f = new File(outputFile);
+                            if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
+                            out = new PrintStream(new FileOutputStream(f, appendOutput));
+                        }
+
+                        PrintStream err = System.err;
+                        if(errorFile != null)
+                        {
+                            File f = new File(errorFile);
+                            if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
+                            err = new PrintStream(new FileOutputStream(f, appendError));
+                        }
+
+                        if(isBuiltinCmd)
+                        {
+                            if(executeBuiltin(cmdArgs.toArray(new String[0]), out, err))
+                            {
+                                System.exit(0);
+                            }
+                            if(out != System.out) out.close();
+                            if(err != System.err) err.close();
+                        }
+                        else
+                        {
+                            ProcessBuilder pb = new ProcessBuilder(cmdArgs);
+                            pb.directory(new File(System.getProperty("user.dir")));
+
+                            if(currentInputFile != null) pb.redirectInput(currentInputFile);
+                            else pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+
+                            if(tempOut != null) pb.redirectOutput(tempOut);
+                            else if(outputFile != null) pb.redirectOutput(appendOutput ? ProcessBuilder.Redirect.appendTo(new File(outputFile)) : ProcessBuilder.Redirect.to(new File(outputFile)));
+                            else pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+
+                            if(errorFile != null) pb.redirectError(appendError ? ProcessBuilder.Redirect.appendTo(new File(errorFile)) : ProcessBuilder.Redirect.to(new File(errorFile)));
+                            else pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+                            Process p = pb.start();
+                            if(i == pipelineCmds.size() - 1 && runInBackground)
+                            {
+                                int jobId = getNextJobId();
+                                System.out.println("[" + jobId + "] " + p.pid());
+                                jobsList.add(new Job(jobId, p, command, "Running"));
+                            }
+                            else
+                            {
+                                p.waitFor();
+                            }
+                        }
+                        currentInputFile = tempOut;
                     }
+                    continue;
                 }
-                catch (Exception e)
-                {
-                    System.out.println(e.getMessage());
-                }
-                continue;
             }
 
             String program = parts[0];
