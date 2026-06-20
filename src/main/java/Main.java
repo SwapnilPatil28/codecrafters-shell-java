@@ -49,12 +49,23 @@ public class Main {
         boolean inSingleQuotes = false;
         boolean inDoubleQuotes = false;
         boolean inWord = false;
+        boolean escaped = false;
 
         for(int i = 0; i < command.length(); i++) 
         {
             char c = command.charAt(i);
 
-            if(c == '\'' && !inDoubleQuotes) 
+            if(escaped) 
+            {
+                sb.append(c);
+                inWord = true;
+                escaped = false;
+            }
+            else if(c == '\\' && !inSingleQuotes && !inDoubleQuotes) 
+            {
+                escaped = true;
+            }
+            else if(c == '\'' && !inDoubleQuotes) 
             {
                 inSingleQuotes = !inSingleQuotes;
                 inWord = true;
@@ -106,7 +117,7 @@ public class Main {
             if(program.equals("exit")) break;
             else if(program.equals("echo"))
             {
-                for (int i = 1; i < parts.length; i++) 
+                for(int i = 1; i < parts.length; i++) 
                 {
                     System.out.print(parts[i]);
                     if (i < parts.length - 1) System.out.print(" ");
@@ -115,7 +126,7 @@ public class Main {
             }
             else if(program.equals("type"))
             {
-                if (parts.length > 1) 
+                if(parts.length > 1) 
                 {
                     System.out.println(type(parts[1]));
                 }
