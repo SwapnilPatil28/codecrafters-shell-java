@@ -362,240 +362,119 @@ public class Main {
             String[] parts = parsedArgs.toArray(new String[0]);
             if(parts.length == 0) continue;
 
-            int pipeIndex = -1;
+            boolean hasPipe = false;
             for(int i = 0; i < parts.length; i++)
             {
                 if(parts[i].equals("|"))
                 {
-                    pipeIndex = i;
+                    hasPipe = true;
                     break;
                 }
             }
 
-            if(pipeIndex != -1)
+            if(hasPipe)
             {
-                List<String> leftArgs = new ArrayList<>();
-                for(int i = 0; i < pipeIndex; i++) leftArgs.add(parts[i]);
-
-                List<String> rightArgs = new ArrayList<>();
-                for(int i = pipeIndex + 1; i < parts.length; i++) rightArgs.add(parts[i]);
-
-                if(leftArgs.isEmpty() || rightArgs.isEmpty()) continue;
-
-                String leftProg = leftArgs.get(0);
-                boolean leftIsBuiltin = isBuiltin(leftProg);
-                String leftExec = getExecutablePath(leftProg);
-
-                String rightProg = rightArgs.get(0);
-                boolean rightIsBuiltin = isBuiltin(rightProg);
-                String rightExec = getExecutablePath(rightProg);
-
-                if(!leftIsBuiltin && !rightIsBuiltin)
+                List<List<String>> pipelineCommands = new ArrayList<>();
+                List<String> currentCmd = new ArrayList<>();
+                
+                for(String part : parts)
                 {
-                    if(leftExec != null && rightExec != null)
+                    if(part.equals("|"))
                     {
-                        try
-                        {
-                            ProcessBuilder pb1 = new ProcessBuilder(leftArgs);
-                            ProcessBuilder pb2 = new ProcessBuilder(rightArgs);
-                            
-                            pb1.directory(new File(System.getProperty("user.dir")));
-                            pb2.directory(new File(System.getProperty("user.dir")));
-
-                            pb1.redirectInput(ProcessBuilder.Redirect.INHERIT);
-                            
-                            if(outputFile != null)
-                            {
-                                File f = new File(outputFile);
-                                if(f.getParentFile() != null && !f.getParentFile().exists())
-                                {
-                                    f.getParentFile().mkdirs();
-                                }
-                                if(appendOutput) pb2.redirectOutput(ProcessBuilder.Redirect.appendTo(f));
-                                else pb2.redirectOutput(f);
-                            }
-                            else
-                            {
-                                pb2.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-                            }
-
-                            if(errorFile != null)
-                            {
-                                File f = new File(errorFile);
-                                if(f.getParentFile() != null && !f.getParentFile().exists())
-                                {
-                                    f.getParentFile().mkdirs();
-                                }
-                                if(appendError) 
-                                {
-                                    pb1.redirectError(ProcessBuilder.Redirect.appendTo(f));
-                                    pb2.redirectError(ProcessBuilder.Redirect.appendTo(f));
-                                }
-                                else 
-                                {
-                                    pb1.redirectError(f);
-                                    pb2.redirectError(f);
-                                }
-                            }
-                            else
-                            {
-                                pb1.redirectError(ProcessBuilder.Redirect.INHERIT);
-                                pb2.redirectError(ProcessBuilder.Redirect.INHERIT);
-                            }
-
-                            List<ProcessBuilder> pbs = new ArrayList<>();
-                            pbs.add(pb1);
-                            pbs.add(pb2);
-                            
-                            List<Process> processes = ProcessBuilder.startPipeline(pbs);
-                            Process lastProcess = processes.get(processes.size() - 1);
-                            
-                            if(runInBackground)
-                            {
-                                int jobId = getNextJobId();
-                                System.out.println("[" + jobId + "] " + lastProcess.pid());
-                                jobsList.add(new Job(jobId, lastProcess, command, "Running"));
-                            }
-                            else
-                            {
-                                for(int i = 0; i < processes.size(); i++)
-                                {
-                                    processes.get(i).waitFor();
-                                }
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            System.out.println(e.getMessage());
-                        }
+                        if(!currentCmd.isEmpty()) pipelineCommands.add(currentCmd);
+                        currentCmd = new ArrayList<>();
                     }
                     else
                     {
-                        if(leftExec == null) System.err.println(leftProg + ": command not found");
-                        if(rightExec == null) System.err.println(rightProg + ": command not found");
+                        currentCmd.add(part);
                     }
-                    continue;
+                }
+                if(!currentCmd.isEmpty()) pipelineCommands.add(currentCmd);
+
+                List<ProcessBuilder> pbs = new ArrayList<>();
+                boolean invalidCommand = false;
+
+                for(List<String> cmdArgs : pipelineCommands)
+                {
+                    String prog = cmdArgs.get(0);
+                    String execPath = getExecutablePath(prog);
+
+                    if(execPath == null && !isBuiltin(prog))
+                    {
+                        System.err.println(prog + ": command not found");
+                        invalidCommand = true;
+                        break;
+                    }
+                    else if(execPath != null)
+                    {
+                        cmdArgs.set(0, execPath);
+                    }
+
+                    ProcessBuilder pb = new ProcessBuilder(cmdArgs);
+                    pb.directory(new File(System.getProperty("user.dir")));
+                    pbs.add(pb);
                 }
 
-                File tempOut = File.createTempFile("pipe", ".tmp");
-                tempOut.deleteOnExit();
+                if(invalidCommand) continue;
 
-                if(leftIsBuiltin)
+                ProcessBuilder lastPb = pbs.get(pbs.size() - 1);
+
+                if(outputFile != null)
                 {
-                    PrintStream leftErr = System.err;
-                    if(errorFile != null)
+                    File f = new File(outputFile);
+                    if(f.getParentFile() != null && !f.getParentFile().exists())
                     {
-                        File f = new File(errorFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        leftErr = new PrintStream(new FileOutputStream(f, appendError));
+                        f.getParentFile().mkdirs();
                     }
-                    PrintStream pipeOut = new PrintStream(new FileOutputStream(tempOut));
-                    if(executeBuiltin(leftArgs.toArray(new String[0]), pipeOut, leftErr))
-                    {
-                        System.exit(0);
-                    }
-                    pipeOut.close();
-                    if(leftErr != System.err) leftErr.close();
-                }
-                else if(leftExec != null)
-                {
-                    ProcessBuilder pb1 = new ProcessBuilder(leftArgs);
-                    pb1.directory(new File(System.getProperty("user.dir")));
-                    pb1.redirectOutput(tempOut);
-                    if(errorFile != null)
-                    {
-                        File f = new File(errorFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        if(appendError) pb1.redirectError(ProcessBuilder.Redirect.appendTo(f));
-                        else pb1.redirectError(f);
-                    }
-                    else
-                    {
-                        pb1.redirectError(ProcessBuilder.Redirect.INHERIT);
-                    }
-                    Process p1 = pb1.start();
-                    p1.waitFor();
+                    if(appendOutput) lastPb.redirectOutput(ProcessBuilder.Redirect.appendTo(f));
+                    else lastPb.redirectOutput(f);
                 }
                 else
                 {
-                    System.err.println(leftProg + ": command not found");
-                    continue;
+                    lastPb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
                 }
 
-                if(rightIsBuiltin)
+                for(ProcessBuilder pb : pbs)
                 {
-                    PrintStream rightOut = System.out;
-                    if(outputFile != null) 
-                    {
-                        File f = new File(outputFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        rightOut = new PrintStream(new FileOutputStream(f, appendOutput));
-                    }
-                    
-                    PrintStream rightErr = System.err;
                     if(errorFile != null)
                     {
                         File f = new File(errorFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        rightErr = new PrintStream(new FileOutputStream(f, appendError));
+                        if(f.getParentFile() != null && !f.getParentFile().exists())
+                        {
+                            f.getParentFile().mkdirs();
+                        }
+                        if(appendError) pb.redirectError(ProcessBuilder.Redirect.appendTo(f));
+                        else pb.redirectError(f);
                     }
-                    
-                    if(executeBuiltin(rightArgs.toArray(new String[0]), rightOut, rightErr))
+                    else
                     {
-                        System.exit(0);
+                        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
                     }
-                    
-                    if(rightOut != System.out) rightOut.close();
-                    if(rightErr != System.err) rightErr.close();
                 }
-                else if(rightExec != null)
+
+                try
                 {
-                    ProcessBuilder pb2 = new ProcessBuilder(rightArgs);
-                    pb2.directory(new File(System.getProperty("user.dir")));
-                    pb2.redirectInput(tempOut);
-                    
-                    if(outputFile != null)
-                    {
-                        File f = new File(outputFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        if(appendOutput) pb2.redirectOutput(ProcessBuilder.Redirect.appendTo(f));
-                        else pb2.redirectOutput(f);
-                    }
-                    else
-                    {
-                        pb2.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-                    }
-
-                    if(errorFile != null)
-                    {
-                        File f = new File(errorFile);
-                        if(f.getParentFile() != null && !f.getParentFile().exists()) f.getParentFile().mkdirs();
-                        if(appendError) pb2.redirectError(ProcessBuilder.Redirect.appendTo(f));
-                        else pb2.redirectError(f);
-                    }
-                    else
-                    {
-                        pb2.redirectError(ProcessBuilder.Redirect.INHERIT);
-                    }
-
-                    Process p2 = pb2.start();
+                    List<Process> processes = ProcessBuilder.startPipeline(pbs);
+                    Process lastProcess = processes.get(processes.size() - 1);
                     
                     if(runInBackground)
                     {
                         int jobId = getNextJobId();
-                        System.out.println("[" + jobId + "] " + p2.pid());
-                        jobsList.add(new Job(jobId, p2, command, "Running"));
+                        System.out.println("[" + jobId + "] " + lastProcess.pid());
+                        jobsList.add(new Job(jobId, lastProcess, command, "Running"));
                     }
                     else
                     {
-                        p2.waitFor();
+                        for(Process p : processes)
+                        {
+                            p.waitFor();
+                        }
                     }
                 }
-                else
+                catch (Exception e)
                 {
-                    System.err.println(rightProg + ": command not found");
+                    System.out.println(e.getMessage());
                 }
-
                 continue;
             }
 
