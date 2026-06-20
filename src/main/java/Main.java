@@ -23,7 +23,6 @@ public class Main {
     }
 
     static List<Job> jobsList = new ArrayList<>();
-    static int globalJobCounter = 1;
 
     public static String getExecutablePath(String command)
     {
@@ -193,6 +192,23 @@ public class Main {
             }
         }
         jobsList.removeAll(toRemove);
+    }
+
+    public static int getNextJobId() 
+    {
+        if (jobsList.isEmpty()) 
+        {
+            return 1;
+        }
+        int maxId = 0;
+        for (Job job : jobsList) 
+        {
+            if (job.id > maxId) 
+            {
+                maxId = job.id;
+            }
+        }
+        return maxId + 1;
     }
 
     public static void main(String[] args) throws Exception
@@ -398,7 +414,7 @@ public class Main {
                         
                         if(runInBackground) 
                         {
-                            int jobId = globalJobCounter++;
+                            int jobId = getNextJobId();
                             System.out.println("[" + jobId + "] " + p.pid());
                             jobsList.add(new Job(jobId, p, command, "Running"));
                         } 
