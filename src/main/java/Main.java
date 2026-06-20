@@ -157,6 +157,7 @@ public class Main {
             String outputFile = null;
             String errorFile = null;
             boolean appendOutput = false;
+            boolean appendError = false;
             
             for(int i = 0; i < parsedArgs.size(); i++) 
             {
@@ -188,6 +189,18 @@ public class Main {
                     if(i + 1 < parsedArgs.size()) 
                     {
                         errorFile = parsedArgs.get(i + 1);
+                        appendError = false;
+                        parsedArgs.remove(i + 1);
+                        parsedArgs.remove(i);
+                        i--;
+                    }
+                }
+                else if(arg.equals("2>>")) 
+                {
+                    if(i + 1 < parsedArgs.size()) 
+                    {
+                        errorFile = parsedArgs.get(i + 1);
+                        appendError = true;
                         parsedArgs.remove(i + 1);
                         parsedArgs.remove(i);
                         i--;
@@ -218,7 +231,7 @@ public class Main {
                 {
                     f.getParentFile().mkdirs();
                 }
-                err = new PrintStream(f);
+                err = new PrintStream(new FileOutputStream(f, appendError));
             }
 
             if(program.equals("exit")) 
@@ -299,7 +312,8 @@ public class Main {
                             
                             if(errorFile != null) 
                             {
-                                pb.redirectError(new File(errorFile));
+                                if(appendError) pb.redirectError(ProcessBuilder.Redirect.appendTo(new File(errorFile)));
+                                else pb.redirectError(new File(errorFile));
                             }
                             else 
                             {
