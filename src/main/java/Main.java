@@ -1,4 +1,5 @@
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -155,6 +156,7 @@ public class Main {
 
             String outputFile = null;
             String errorFile = null;
+            boolean appendOutput = false;
             
             for(int i = 0; i < parsedArgs.size(); i++) 
             {
@@ -164,6 +166,18 @@ public class Main {
                     if(i + 1 < parsedArgs.size()) 
                     {
                         outputFile = parsedArgs.get(i + 1);
+                        appendOutput = false;
+                        parsedArgs.remove(i + 1);
+                        parsedArgs.remove(i);
+                        i--;
+                    }
+                }
+                else if(arg.equals(">>") || arg.equals("1>>")) 
+                {
+                    if(i + 1 < parsedArgs.size()) 
+                    {
+                        outputFile = parsedArgs.get(i + 1);
+                        appendOutput = true;
                         parsedArgs.remove(i + 1);
                         parsedArgs.remove(i);
                         i--;
@@ -193,7 +207,7 @@ public class Main {
                 {
                     f.getParentFile().mkdirs();
                 }
-                out = new PrintStream(f);
+                out = new PrintStream(new FileOutputStream(f, appendOutput));
             }
 
             PrintStream err = System.err;
@@ -273,11 +287,24 @@ public class Main {
                         {
                             pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
                             
-                            if(outputFile != null) pb.redirectOutput(new File(outputFile));
-                            else pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                            if(outputFile != null) 
+                            {
+                                if(appendOutput) pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(outputFile)));
+                                else pb.redirectOutput(new File(outputFile));
+                            }
+                            else 
+                            {
+                                pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                            }
                             
-                            if(errorFile != null) pb.redirectError(new File(errorFile));
-                            else pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                            if(errorFile != null) 
+                            {
+                                pb.redirectError(new File(errorFile));
+                            }
+                            else 
+                            {
+                                pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                            }
                         } 
                         else 
                         {
