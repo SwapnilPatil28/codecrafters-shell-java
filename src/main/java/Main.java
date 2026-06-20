@@ -1,3 +1,4 @@
+import java.io.File;
 import java.util.Scanner;
 
 public class Main {
@@ -38,7 +39,7 @@ public class Main {
             {
                 System.out.println((command.length()>5)?command.substring(5):"");
             }
-            else if(s.startsWith("type"))
+            else if(command.startsWith("type"))
             {
                 String nextCom = command.substring(5);
                 System.out.println(type(nextCom));
