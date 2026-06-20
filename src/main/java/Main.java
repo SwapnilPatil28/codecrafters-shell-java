@@ -1,14 +1,28 @@
 import java.io.File;
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
+
+    public static String getExecutablePath(String command)
+    {
+        String path = System.getenv("PATH");
+        if(path == null) return null;
+        
+        String[] pathDirs = path.split(":");
+        for(int i=0; i<pathDirs.length; i++) 
+        {
+            File file = new File(pathDirs[i], command);
+            if(file.exists() && file.canExecute()) 
+            {
+                return file.getAbsolutePath();
+            }
+        }
+        return null;
+    }
 
     public static String type(String command)
     {
         String[] commands = {"exit", "echo", "type"};
-        String path = System.getenv("PATH");
-        String[] pathDirs = path.split(":");
-        boolean isBuiltIn = false;
         for(int i=0; i<commands.length; i++)
         {
             if(commands[i].equals(command)) 
@@ -16,14 +30,13 @@ public class Main {
                 return command + " is a shell builtin";
             }
         }
-        for(int i=0; i<pathDirs.length; i++) 
+        
+        String execPath = getExecutablePath(command);
+        if(execPath != null) 
         {
-            File file = new File(pathDirs[i], command);
-            if(file.exists() && file.canExecute()) 
-            {
-                return command + " is " + file.getAbsolutePath();
-            }
+            return command + " is " + execPath;
         }
+        
         return command + ": not found";
     }
 
@@ -34,17 +47,45 @@ public class Main {
         {
             System.out.print("$ ");
             String command = sc.nextLine();
-            if(command.equals("exit"))   break;
-            else if(command.startsWith("echo"))
+            if(command.trim().isEmpty()) continue;
+
+            String[] parts = command.split(" ");
+            String program = parts[0];
+
+            if(program.equals("exit")) break;
+            else if(program.equals("echo"))
             {
                 System.out.println((command.length()>5)?command.substring(5):"");
             }
-            else if(command.startsWith("type"))
+            else if(program.equals("type"))
             {
                 String nextCom = command.substring(5);
                 System.out.println(type(nextCom));
             }
-            else System.out.println(command+": command not found");
+            else 
+            {
+                String execPath = getExecutablePath(program);
+                if(execPath != null) 
+                {
+                    try 
+                    {
+                        parts[0] = execPath;
+                        ProcessBuilder pb = new ProcessBuilder(parts);
+                        pb.inheritIO(); 
+                        
+                        Process p = pb.start();
+                        p.waitFor();
+                    } 
+                    catch (Exception e) 
+                    {
+                        System.out.println(e.getMessage());
+                    }
+                } 
+                else 
+                {
+                    System.out.println(command + ": command not found");
+                }
+            }
         }
     }
 }
