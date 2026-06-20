@@ -173,22 +173,32 @@ public class Main {
             }
         }
         
+        List<Job> activeJobs = new ArrayList<>(jobsList);
+        activeJobs.removeAll(toRemove);
+
         for(int j = 0; j < jobsList.size(); j++) 
         {
             Job job = jobsList.get(j);
-            char marker = ' ';
-            if(j == jobsList.size() - 1) 
+            if(toRemove.contains(job)) 
             {
-                marker = '+';
-            } 
-            else if(j == jobsList.size() - 2) 
-            {
-                marker = '-';
-            }
-            
-            if(printAll || toRemove.contains(job)) 
-            {
+                int index = activeJobs.size(); 
+                char marker = ' ';
+                if(index == activeJobs.size()) marker = '+';
+                else if(index == activeJobs.size() - 1) marker = '-';
+                
                 out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
+            }
+            else 
+            {
+                int index = activeJobs.indexOf(job);
+                char marker = ' ';
+                if(index == activeJobs.size() - 1) marker = '+';
+                else if(index == activeJobs.size() - 2) marker = '-';
+                
+                if(printAll)
+                {
+                    out.printf("[%d]%c  %-24s%s\n", job.id, marker, job.status, job.command);
+                }
             }
         }
         jobsList.removeAll(toRemove);
@@ -196,19 +206,11 @@ public class Main {
 
     public static int getNextJobId() 
     {
-        if (jobsList.isEmpty()) 
-        {
-            return 1;
-        }
-        int maxId = 0;
-        for (Job job : jobsList) 
-        {
-            if (job.id > maxId) 
-            {
-                maxId = job.id;
-            }
-        }
-        return maxId + 1;
+        Set<Integer> usedIds = new HashSet<>();
+        for (Job job : jobsList) usedIds.add(job.id);
+        int id = 1;
+        while (usedIds.contains(id)) id++;
+        return id;
     }
 
     public static void main(String[] args) throws Exception
