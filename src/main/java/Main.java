@@ -69,7 +69,6 @@ public class Main {
                 {
                     try 
                     {
-                        parts[0] = execPath;
                         ProcessBuilder pb = new ProcessBuilder(parts);
                         pb.inheritIO(); 
                         
